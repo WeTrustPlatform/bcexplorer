@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"log"
 	"net/http"
 
@@ -20,6 +21,9 @@ func main() {
 
 	beaconClient := pb.NewBeaconServiceClient(conn)
 
+	http.HandleFunc("/bl/", func(w http.ResponseWriter, r *http.Request) {
+	})
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		head, err := beaconClient.CanonicalHead(ctx, &ptypes.Empty{})
 		if err != nil {
@@ -27,7 +31,8 @@ func main() {
 			return
 		}
 		w.Write([]byte("<h1>Latest blocks</h1>"))
-		w.Write(head.RandaoReveal)
+		hash := hex.EncodeToString(head.GetStateRootHash32())
+		w.Write([]byte("<a href=\"/bl/" + hash + "\">" + hash + "</a>"))
 	})
 
 	log.Fatal(http.ListenAndServe(":8088", nil))
