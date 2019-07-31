@@ -20,12 +20,12 @@ func main() {
 
 	beaconClient := pb.NewBeaconServiceClient(conn)
 
-	head, err := beaconClient.CanonicalHead(ctx, &ptypes.Empty{})
-	if err != nil {
-		panic(err)
-	}
-
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		head, err := beaconClient.CanonicalHead(ctx, &ptypes.Empty{})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		w.Write([]byte("<h1>Latest blocks</h1>"))
 		w.Write(head.RandaoReveal)
 	})
