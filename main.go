@@ -31,7 +31,7 @@ func main() {
 			return
 		}
 		w.Write([]byte("<h1>Latest blocks</h1>"))
-		hash := hex.EncodeToString(head.GetStateRootHash32())
+		hash := hex.EncodeToString(head.StateRoot)
 		w.Write([]byte("<a href=\"/bl/" + hash + "\">" + hash + "</a>"))
 	})
 
