@@ -14,6 +14,24 @@ import (
 	"google.golang.org/grpc"
 )
 
+func displayBlock(
+	ctx context.Context,
+	w http.ResponseWriter,
+	client pbeth.BeaconChainClient,
+	block *pbeth.BeaconBlock) *pbeth.BeaconBlock {
+
+	hash := hex.EncodeToString(block.StateRoot)
+	nat := len(block.GetBody().Attestations)
+	w.Write([]byte("<p><a href=\"/bl/" + hash + "\">" + hash + "</a> - " + fmt.Sprintf("%d", nat) + " attestations</p>"))
+
+	resp, _ := client.ListBlocks(ctx, &pbeth.ListBlocksRequest{
+		QueryFilter: &pbeth.ListBlocksRequest_Root{Root: block.ParentRoot},
+		PageToken:   strconv.Itoa(0),
+	}, &grpc.EmptyCallOption{})
+
+	return resp.Blocks[0]
+}
+
 func main() {
 	ctx := context.Background()
 
@@ -29,29 +47,17 @@ func main() {
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		head, err := beaconClient.CanonicalHead(ctx, &ptypes.Empty{})
+		block, err := beaconClient.CanonicalHead(ctx, &ptypes.Empty{})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		hash := hex.EncodeToString(head.StateRoot)
-		nat := len(head.GetBody().Attestations)
-		w.Write([]byte("<p><a href=\"/bl/" + hash + "\">" + hash + "</a> - " + fmt.Sprintf("%d", nat) + " attestations</p>"))
+		w.Write([]byte("<h1>Latest blocks</h1>"))
 
-		blockResp, err := ethClient.ListBlocks(ctx, &pbeth.ListBlocksRequest{
-			QueryFilter: &pbeth.ListBlocksRequest_Root{Root: head.ParentRoot},
-			PageToken:   strconv.Itoa(0),
-		}, &grpc.EmptyCallOption{})
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		for i := 0; i < 20 && block != nil; i++ {
+			block = displayBlock(ctx, w, ethClient, block)
 		}
-
-		block := blockResp.Blocks[0]
-		hash = hex.EncodeToString(block.StateRoot)
-		nat = len(block.GetBody().Attestations)
-		w.Write([]byte("<p><a href=\"/bl/" + hash + "\">" + hash + "</a> - " + fmt.Sprintf("%d", nat) + " attestations</p>"))
 	})
 
 	log.Fatal(http.ListenAndServe(":8088", nil))
