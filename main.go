@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -32,7 +33,8 @@ func main() {
 		}
 		w.Write([]byte("<h1>Latest blocks</h1>"))
 		hash := hex.EncodeToString(head.StateRoot)
-		w.Write([]byte("<a href=\"/bl/" + hash + "\">" + hash + "</a>"))
+		nat := len(head.GetBody().Attestations)
+		w.Write([]byte("<a href=\"/bl/" + hash + "\">" + hash + "</a> - " + fmt.Sprintf("%d", nat) + " attestations"))
 	})
 
 	log.Fatal(http.ListenAndServe(":8088", nil))
