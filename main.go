@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	ptypes "github.com/gogo/protobuf/types"
 	pb "github.com/prysmaticlabs/prysm/proto/beacon/rpc/v1"
+	pbeth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"google.golang.org/grpc"
 )
 
@@ -21,6 +23,7 @@ func main() {
 	}
 
 	beaconClient := pb.NewBeaconServiceClient(conn)
+	ethClient := pbeth.NewBeaconChainClient(conn)
 
 	http.HandleFunc("/bl/", func(w http.ResponseWriter, r *http.Request) {
 	})
@@ -31,10 +34,24 @@ func main() {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.Write([]byte("<h1>Latest blocks</h1>"))
+
 		hash := hex.EncodeToString(head.StateRoot)
 		nat := len(head.GetBody().Attestations)
-		w.Write([]byte("<a href=\"/bl/" + hash + "\">" + hash + "</a> - " + fmt.Sprintf("%d", nat) + " attestations"))
+		w.Write([]byte("<p><a href=\"/bl/" + hash + "\">" + hash + "</a> - " + fmt.Sprintf("%d", nat) + " attestations</p>"))
+
+		blockResp, err := ethClient.ListBlocks(ctx, &pbeth.ListBlocksRequest{
+			QueryFilter: &pbeth.ListBlocksRequest_Root{Root: head.ParentRoot},
+			PageToken:   strconv.Itoa(0),
+		}, &grpc.EmptyCallOption{})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		block := blockResp.Blocks[0]
+		hash = hex.EncodeToString(block.StateRoot)
+		nat = len(block.GetBody().Attestations)
+		w.Write([]byte("<p><a href=\"/bl/" + hash + "\">" + hash + "</a> - " + fmt.Sprintf("%d", nat) + " attestations</p>"))
 	})
 
 	log.Fatal(http.ListenAndServe(":8088", nil))
